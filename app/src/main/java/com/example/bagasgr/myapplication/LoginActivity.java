@@ -1,21 +1,17 @@
 package com.example.bagasgr.myapplication;
 
-import android.content.Context;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import com.example.bagasgr.myapplication.model.DataItem;
+import com.example.bagasgr.myapplication.model.SharedPreferenceClass;
 import com.example.bagasgr.myapplication.model.LoginParameter;
 import com.example.bagasgr.myapplication.model.ResponseLogin;
-import com.example.bagasgr.myapplication.model.dashboardModel.DashboardDataItem;
-import com.example.bagasgr.myapplication.model.dashboardModel.DashboardResponse;
 
 import java.util.List;
 
@@ -45,7 +41,6 @@ public class LoginActivity extends AppCompatActivity {
         }
     };
     private ApiEndPointInterface apiService;
-    private SharedPreferences prefs;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -56,11 +51,9 @@ public class LoginActivity extends AppCompatActivity {
         buildRetrofit();
 
         apiService = retrofit.create(ApiEndPointInterface.class);
-        prefs = this.getSharedPreferences(
-                "com.example.app", Context.MODE_PRIVATE);
     }
 
-    public void buildRetrofit(){
+    public Retrofit buildRetrofit(){
         HttpLoggingInterceptor interceptor = new HttpLoggingInterceptor();
         interceptor.setLevel(HttpLoggingInterceptor.Level.BODY);
         OkHttpClient client = new OkHttpClient.Builder().addInterceptor(interceptor).build();
@@ -70,14 +63,14 @@ public class LoginActivity extends AppCompatActivity {
                 .addConverterFactory(GsonConverterFactory.create())
                  .client(client)
                 .build();
+         return retrofit;
     }
+
 
     public void login(){
         email = (TextView) findViewById(R.id.email);
         password = (TextView) findViewById(R.id.password);
 
-        loginInformation.setNemail(email.getText().toString());
-        loginInformation.setNpassword(password.getText().toString());
 
         Call<ResponseLogin> call = apiService.login(loginInformation);
         call.enqueue(new Callback<ResponseLogin>() {
@@ -90,13 +83,9 @@ public class LoginActivity extends AppCompatActivity {
                     List<DataItem> data = userInformation.getData();
                     int userId = data.get(0).getUserId();
                     int businessId = data.get(0).getBusinessId();
-                    prefs.edit().putInt("userId", userId);
-                    prefs.edit().putInt("businessId", businessId);
-                    prefs.edit().apply();
+                    SharedPreferenceClass.setValue("userId", Integer.toString(userId), getApplicationContext());
+                    SharedPreferenceClass.setValue("businessId", Integer.toString(businessId), getApplicationContext());
 
-                    getDashboardData(userId,businessId);
-
-                    Log.d("bagas", "onResponse: "+prefs.getInt("userId", 0));
 
                     Intent i = new Intent(LoginActivity.this, BottomNavigationActivity.class);
                     startActivity(i);
@@ -111,30 +100,7 @@ public class LoginActivity extends AppCompatActivity {
             }
         });
     }
-    public void getDashboardData(int userId, int businessId) {
-        Call<DashboardResponse> dashboardCall = apiService.getDashboard(businessId, userId, 1);
-        dashboardCall.enqueue(new Callback<DashboardResponse>() {
-            @Override
-            public void onResponse(Call<DashboardResponse> call, Response<DashboardResponse> response) {
-                int statusCode = response.code();
-                DashboardResponse userInformation = response.body();
-                if (statusCode == 200) {
-                    List<DashboardDataItem> data = userInformation.getData();
-                    int connectedBusinessCount = data.get(0).getConnectedBusinessCount();
-                    int pendingInvitationCount = data.get(0).getPendingInvitationCount();
-                    int connectRequestCount = data.get(0).getConnectRequestCount();
-                    int teamMemberCount = data.get(0).getTeamMemberCount();
 
-                }
-
-            }
-
-            @Override
-            public void onFailure(Call<DashboardResponse> call, Throwable t) {
-                Toast.makeText(getApplicationContext(),"failed to retrieve dashboard data",Toast.LENGTH_SHORT).show();
-            }
-        });
-    }
 
 }
 
